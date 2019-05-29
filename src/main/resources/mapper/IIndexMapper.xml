@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<!-- namespace:命名空间，该值与接口全路径保持一致 -->
+<mapper namespace="com.newer.supervision.mapper.IIndexMapper">
+	<!-- 开启二级缓存，默认情况下没有有开启的 -->
+	<cache />
+	<!-- 定义domain类属性与数据表字段对应关系 -->
+	<resultMap type="com.newer.supervision.domain.ItemOrg" id="x">
+		<association property="orgid" javaType="com.newer.supervision.domain.Organication">
+			<result property="orgName" column="ORGNAME"/>
+		</association>
+		<association property="item_Code" javaType="com.newer.supervision.domain.ItemRepository">
+			<result property="item_Code" column="ITEM_CODE"/>
+			<result property="item_Name" column="ITEM_NAME"/>
+			<result property="item_Status" column="TYPE_NAME"/>
+			<result property="over_Time" column="OVER_TIME"/>
+		</association>
+		
+	</resultMap>
+	
+	
+	<!-- 根据事项名称进行模糊查询-->
+	<select id="likedingyue"  resultMap="x">
+	SELECT ir.`ITEM_CODE`,ir.`ITEM_NAME`,d.`TYPE_NAME`,o.orgname,ir.`OVER_TIME` FROM user_order uo,item_repository ir,dict d,organication o,item_org io,item_process ip WHERE uo.`ITEM_CODE`=io.`ITEM_CODE` AND io.`ISPRIMARY`='1' AND io.`ORGID`=o.orgid AND uo.`ITEM_CODE`=ir.`ITEM_CODE` AND d.`TYPE_ID`=ip.`ITEM_STATUS` AND d.`TYPE`='ITEM_STATUS' AND uo.`ITEM_CODE`=ip.`ITEM_CODE` AND uo.`USER_ID`=#{id}
+	<if test="item_Name_!=null and item_Name_!=''">
+		AND ir.`ITEM_NAME` LIKE #{item_Name_}
+	</if>
+	</select>
+	<!-- 累计完成 -->
+	<select id="tongjiWC" resultType="long">
+	SELECT  COUNT(*) FROM USER u,item_repository ir,item_process ip WHERE 1=1
+	<if test="userid!=2 and userid!=1">
+		AND u.USERID=#{userid}
+	</if>
+	AND ip.`USER_ID`=u.`USERID` AND ip.`ITEM_CODE`=ir.`ITEM_CODE` 
+	AND ir.ITEM_STATUS='10'
+	</select>
+	
+	<!-- 推进中 -->
+	<select id="tongjiTJZ" resultType="long">
+	SELECT COUNT(*) FROM item_process ip,item_org io WHERE 1=1
+	<if test="userid!=2 and userid!=1">
+	AND ip.user_id=#{userid} 
+	</if>
+	AND io.`ISPRIMARY`='1'
+	AND io.`ITEM_CODE`=ip.`ITEM_CODE` AND item_status='12' AND ip.`BJ`=1
+	</select>
+	
+	<!-- 本月完成 -->
+	<select id="tongjiBYWC" resultType="long">
+		SELECT  COUNT(*) FROM USER u,item_repository ir,item_process ip WHERE 1=1
+		<if test="userid!=2 and userid!=1">
+		AND u.USERID=#{userid}
+		</if>
+		AND ip.`USER_ID`=u.`USERID` AND ip.`ITEM_CODE`=ir.`ITEM_CODE`
+		AND ir.ITEM_STATUS='10' AND DATE_FORMAT(ip.`OPT_TIME`, '%Y%m') = DATE_FORMAT(CURDATE() ,'%Y%m')
+	</select>
+	
+	<!-- 本月更新 -->
+	<select id="tongjiBYGX" resultType="long">
+		SELECT COUNT(*) FROM USER u,item_process ip,item_org io WHERE 1=1 
+		<if test="userid!=2 and userid!=1">
+			AND u.USERID=#{userid}
+		</if>
+		AND u.`USERID`=io.userid AND io.item_code=ip.item_code AND ip.`USER_ID`=u.`USERID` AND ip.item_status='12'
+		AND DATE_FORMAT(ip.opt_time, '%Y%m') = DATE_FORMAT(CURDATE() ,'%Y%m') AND ip.`BJ`=1
+	</select>
+	
+	<!-- 当前延期 -->
+	<select id="tongjiYQ" resultType="long">
+		SELECT count(*) FROM USER u,item_repository ir,item_org io WHERE 1=1 
+		<if test="userid!=2 and userid!=1">
+			AND u.USERID=#{userid}
+		</if> 
+		AND u.`USERID`=io.userid AND io.item_code=ir.item_code
+		AND UNIX_TIMESTAMP(NOW())>UNIX_TIMESTAMP(ir.OVER_TIME)
+	</select>
+	
+	<!-- 当前待办事项超时 -->
+	<select id="tongjiCS" resultType="long">
+		SELECT COUNT(ir.item_time) FROM USER u,item_repository ir,item_process ip WHERE 1=1 
+		<if test="userid!=2 and userid!=1">
+			AND u.USERID=#{userid} 
+		</if>
+		AND u.`USERID`=ip.user_id AND ip.item_code=ir.item_code
+		AND UNIX_TIMESTAMP(NOW())>UNIX_TIMESTAMP(ir.`NEXT_CALLTIME`)
+	</select>
+	
+	
+</mapper>

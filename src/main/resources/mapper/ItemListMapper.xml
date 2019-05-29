@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<!-- namespace:命名空间，该值与接口全路径保持一致 -->
+<mapper namespace="com.newer.supervision.mapper.ItemListMapper">
+	<!-- 开启二级缓存，默认情况下没有有开启的 -->
+	<cache />
+	<!-- 定义domain类属性与数据表字段对应关系 -->
+	<resultMap type="com.newer.supervision.domain.ItemProcess" id="x">
+	<result property="item_Code.item_Code" column="ITEM_CODE"/>
+	<result property="item_Code.item_Name" column="ITEM_NAME"/>
+	<result property="item_Code.grogess" column="USER_ID"/>
+	<result property="user_Id.realname" column="REALNAME"/>
+	<result property="item_Code.over_Time" column="OVER_TIME"/>
+	<result property="user_Id.orgid.orgName" column="ORGNAME"/>
+	<result property="item_Status" column="ITEM_STATUS"/>
+	</resultMap>
+	
+	
+	<!-- 根据事项名称进行模糊查询-->
+	<select id="likeCheck" parameterType="com.newer.supervision.domain.Parameter"  resultMap="x">
+	SELECT k.item_code,item_name,orgname,realname,over_time,item_status,next_calltime,user_id FROM
+	(SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status,next_calltime FROM 
+	(SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status,next_calltime FROM item_process m JOIN
+	(SELECT h.item_code,item_name,orgname,realname,over_time,next_calltime FROM item_repository g JOIN
+	(SELECT item_code,orgname,realname FROM `user` e JOIN 
+	(SELECT d.item_code,orgname,userid FROM organication c JOIN 
+	(SELECT a.item_code,orgid,userid FROM item_repository a JOIN 
+	item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d 
+	ON c.ORGID=d.orgid) f
+	ON e.userid=f.userid) h
+	ON g.`ITEM_CODE`=h.item_code) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1 
+	AND 1=1 
+	<if test="item_code!=null and item_code!=''">
+		AND i.item_code LIKE #{item_code}
+	</if>
+	<if test="item_name!=null and item_name!=''">
+		AND i.item_name LIKE #{item_name}
+	</if>
+	<if test="orgname!=null and orgname!=''">
+		AND i.orgname LIKE #{orgname}
+	</if>
+	<if test="postpone==1 and postpone!=null">
+		AND UNIX_TIMESTAMP(NOW())>UNIX_TIMESTAMP(i.OVER_TIME)
+	</if>
+	<if test="postpone==2 and postpone!=null">
+		AND UNIX_TIMESTAMP(i.OVER_TIME)>UNIX_TIMESTAMP(NOW())
+	</if>
+	<if test="overtime==1 and overtime!=null">
+		AND UNIX_TIMESTAMP(NOW())>UNIX_TIMESTAMP(i.next_calltime)
+	</if>
+	<if test="overtime==2 and overtime!=null">
+		AND UNIX_TIMESTAMP(i.next_calltime)>UNIX_TIMESTAMP(NOW())
+	</if>
+	<if test="item_status!=null and item_status!=''">
+		AND m.item_status=#{item_status}
+	</if>
+	) n
+	JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k
+	LEFT JOIN (SELECT * FROM user_order WHERE user_id=#{userid}) l  ON k.item_code=l.item_code WHERE 1=1
+	<if test="progess==1 and progess!=null">
+		AND user_id IS NOT NULL
+	</if>
+	<if test="progess==2 and progess!=null">
+		AND user_id IS NULL
+	</if>
+	</select>
+	
+	<!-- 统计推进中 -->
+	<select id="getPropelling" resultMap="x">
+		SELECT k.item_code,item_name,orgname,realname,over_time,item_status,user_id FROM 
+		(SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status FROM  
+		(SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status FROM item_process m JOIN 
+		(SELECT h.item_code,item_name,orgname,realname,over_time FROM item_repository g JOIN 
+		(SELECT item_code,orgname,realname FROM `user` e JOIN  
+		(SELECT d.item_code,orgname,userid FROM organication c JOIN  
+		(SELECT a.item_code,orgid,userid FROM item_repository a JOIN  
+		item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d  
+		ON c.ORGID=d.orgid) f 
+		ON e.userid=f.userid AND 1=1 
+		<if test="id!=2 and id!=1">
+			AND e.`USERID`=#{id}
+		</if>
+		) h 
+		ON g.`ITEM_CODE`=h.item_code) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1 AND item_status='12') n 
+		JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k 
+		LEFT JOIN (SELECT * FROM user_order WHERE 1=1
+			<if test="id!=2 and id!=1">
+				AND user_id=#{id}
+			</if>		
+		) l  ON k.item_code=l.item_code
+	</select>
+	
+	<!-- 统计累计完成 -->
+	<select id="getComplete" resultMap="x">
+		SELECT k.item_code,item_name,orgname,realname,over_time,item_status,user_id FROM 
+		(SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status FROM 
+		(SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status FROM item_process m JOIN  
+		(SELECT h.item_code,item_name,orgname,realname,over_time FROM item_repository g JOIN  
+		(SELECT item_code,orgname,realname FROM `user` e JOIN  
+		(SELECT d.item_code,orgname,userid FROM organication c JOIN  
+		(SELECT a.item_code,orgid,userid FROM item_repository a JOIN   
+		item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d  
+		ON c.ORGID=d.orgid) f 
+		ON e.userid=f.userid AND 1=1 
+		<if test="id!=2 and id!=1">
+			AND e.`USERID`=#{id}
+		</if>
+		) h 
+		ON g.`ITEM_CODE`=h.item_code) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1 AND item_status='10') n  
+		JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k 
+		LEFT JOIN (SELECT * FROM user_order WHERE 1=1 
+		 <if test="id!=2 and id!=1">
+			AND user_id=#{id}
+		</if>
+		) l  ON k.item_code=l.item_code
+	</select>
+	
+	<!-- 我的事项 -->
+	<select id="getMyitem" resultMap="x">
+		SELECT k.item_code,item_name,orgname,realname,over_time,item_status,user_id FROM   
+		 (SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status FROM    
+		 (SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status FROM item_process m JOIN   
+		 (SELECT h.item_code,item_name,orgname,realname,over_time FROM item_repository g JOIN   
+		 (SELECT item_code,orgname,realname FROM `user` e JOIN    
+		 (SELECT d.item_code,orgname,userid FROM organication c JOIN    
+		 (SELECT a.item_code,orgid,userid FROM item_repository a JOIN    
+		 item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d    
+		 ON c.ORGID=d.orgid) f   
+		 ON e.userid=f.userid AND 1=1 
+		 <if test="id!=2 and id!=1">
+			AND e.`USERID`=#{id}
+		</if>
+		 ) h   
+		 ON g.`ITEM_CODE`=h.item_code) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1) n   
+		 JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k   
+		 LEFT JOIN (SELECT * FROM user_order WHERE 1=1
+		 <if test="id!=2 and id!=1">
+			AND user_id=#{id}
+		</if>
+		 ) l  ON k.item_code=l.item_code
+	</select>
+	
+	<!-- 本月完成 -->
+	<select id="getmonthcomplete" resultMap="x">
+		SELECT k.item_code,item_name,orgname,realname,over_time,item_status,user_id FROM   
+		 (SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status FROM    
+		 (SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status FROM item_process m JOIN   
+		 (SELECT h.item_code,item_name,orgname,realname,over_time FROM item_repository g JOIN   
+		 (SELECT item_code,orgname,realname FROM `user` e JOIN    
+		 (SELECT d.item_code,orgname,userid FROM organication c JOIN    
+		 (SELECT a.item_code,orgid,userid FROM item_repository a JOIN    
+		 item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d    
+		 ON c.ORGID=d.orgid) f   
+		 ON e.userid=f.userid AND 1=1 
+		 <if test="id!=2 and id!=1">
+			AND e.`USERID`=#{id}
+		</if>
+		 ) h   
+		 ON g.`ITEM_CODE`=h.item_code) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1 AND item_status='10' AND DATE_FORMAT(m.`OPT_TIME`, '%Y%m') = DATE_FORMAT(CURDATE() ,'%Y%m')) n   
+		 JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k   
+		 LEFT JOIN (SELECT * FROM user_order WHERE 1=1 
+		 <if test="id!=2 and id!=1">
+			AND user_id=#{id}
+		</if>
+		 ) l  ON k.item_code=l.item_code
+	</select>
+	
+	<!-- 本月更新 -->
+	<select id="getmonthupdate" resultMap="x">
+		SELECT k.item_code,item_name,orgname,realname,over_time,item_status,user_id FROM   
+		 (SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status FROM    
+		 (SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status FROM item_process m JOIN   
+		 (SELECT h.item_code,item_name,orgname,realname,over_time FROM item_repository g JOIN   
+		 (SELECT item_code,orgname,realname FROM `user` e JOIN    
+		 (SELECT d.item_code,orgname,userid FROM organication c JOIN    
+		 (SELECT a.item_code,orgid,userid FROM item_repository a JOIN    
+		 item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d    
+		 ON c.ORGID=d.orgid) f   
+		 ON e.userid=f.userid AND 1=1 
+		 <if test="id!=2 and id!=1">
+			AND e.`USERID`=#{id}
+		</if>
+		 ) h   
+		 ON g.`ITEM_CODE`=h.item_code) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1  AND DATE_FORMAT(m.`OPT_TIME`, '%Y%m') = DATE_FORMAT(CURDATE() ,'%Y%m')) n   
+		 JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k   
+		 LEFT JOIN (SELECT * FROM user_order WHERE 1=1 
+			AND user_id=#{id}
+		 ) l  ON k.item_code=l.item_code
+	</select>
+	
+	<!-- 统计延期 -->
+	<select id="getDelay" resultMap="x">
+		SELECT k.item_code,item_name,orgname,realname,over_time,item_status,user_id FROM   
+		 (SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status FROM   
+		 (SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status FROM item_process m JOIN   
+		 (SELECT h.item_code,item_name,orgname,realname,over_time FROM item_repository g JOIN   
+		 (SELECT item_code,orgname,realname FROM `user` e JOIN   
+		 (SELECT d.item_code,orgname,userid FROM organication c JOIN   
+		 (SELECT a.item_code,orgid,userid FROM item_repository a JOIN   
+		 item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d   
+		 ON c.ORGID=d.orgid) f  
+		 ON e.userid=f.userid) h  
+		 ON g.`ITEM_CODE`=h.item_code AND UNIX_TIMESTAMP(NOW())>UNIX_TIMESTAMP(g.OVER_TIME)) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1) n   
+		 JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k  
+		 LEFT JOIN (SELECT * FROM user_order WHERE 1=1 
+		 <if test="id!=2 and id!=1">
+			AND user_id=#{id}
+		</if>
+		 ) l  ON k.item_code=l.item_code
+	</select>
+	
+	<!-- 统计待办事项超时 -->
+	<select id="getOvertime" resultMap="x">
+		SELECT k.item_code,item_name,orgname,realname,over_time,item_status,user_id FROM   
+		 (SELECT n.item_code,item_name,orgname,realname,over_time,type_name AS item_status FROM    
+		 (SELECT i.item_code,item_name,orgname,realname,over_time,m.item_status FROM item_process m JOIN   
+		 (SELECT h.item_code,item_name,orgname,realname,over_time,g.`NEXT_CALLTIME` FROM item_repository g JOIN    
+		 (SELECT item_code,orgname,realname FROM `user` e JOIN    
+		 (SELECT d.item_code,orgname,userid FROM organication c JOIN   
+		 (SELECT a.item_code,orgid,userid FROM item_repository a JOIN   
+		 item_org b ON a.`ITEM_CODE`=b.`ITEM_CODE` AND b.`ISPRIMARY`=1) d   
+		 ON c.ORGID=d.orgid) f  
+		 ON e.userid=f.userid) h  
+		 ON g.`ITEM_CODE`=h.item_code AND UNIX_TIMESTAMP(NOW())>UNIX_TIMESTAMP(g.`NEXT_CALLTIME`)) i ON m.`ITEM_CODE`=i.item_code AND m.bj=1) n   
+		 JOIN dict j ON n.item_status=j.type_id AND j.type='item_status') k  
+		 LEFT JOIN (SELECT * FROM user_order WHERE 1=1 
+		 <if test="id!=2 and id!=1">
+			AND user_id=#{id}
+		</if>
+		 ) l  ON k.item_code=l.item_code
+	</select>
+</mapper>

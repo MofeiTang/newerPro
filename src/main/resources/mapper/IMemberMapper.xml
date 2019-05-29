@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<!-- namespace:命名空间，该值与接口全路径保持一致 -->
+<mapper namespace="com.newer.supervision.mapper.IBYKMpper">
+	<!-- 开启二级缓存，默认情况下没有有开启的 -->
+	<cache />
+	<!-- 定义domain类属性与数据表字段对应关系 -->
+	<resultMap type="com.newer.supervision.domain.ItemRepository" id="x">
+		<result property="source" column="SOURCE" />
+		<result property="item_Name" column="ITEM_NAME" />
+		<result property="source_Time" column="SOURCE_TIME"/>
+		<result property="adverse_Comp" column="ADVERSE_COMPANY"/>
+		<result property="file_Type" column="FILE_TYPE" />
+		<result property="item_Code" column="ITEM_CODE" />
+		<result property="del_Status" column="DEL_STATUS" />
+		<result property="item_Status" column="ITEM_STATUS" />
+	</resultMap>
+	
+	
+	<!-- 根据姓名和卡号进行模糊查询   也可以单个进行模糊查询-->
+	<select id="likeFind"  resultMap="x">
+	SELECT ITEM_CODE,SOURCE,ITEM_NAME,SOURCE_TIME,ADVERSE_COMP,FILE_TYPE,DEL_STATUS,ITEM_STATUS FROM item_repository WHERE 1=1
+	<if test="source_!=null and source_!=''">
+		and SOURCE LIKE #{source_}
+	</if>
+	<if test="item_name_!=null and item_name_!=''">
+		and ITEM_NAME LIKE #{item_name_}
+	</if>
+	<if test="serial_number_!=null and serial_number_!=''">
+		and SERIAL_NUM LIKE #{serial_number_}
+	</if>
+	</select>
+	
+	<!-- 修改退回的事项内容 -->
+		<update id="updateItem_content" parameterType="com.newer.supervision.domain.ItemRepository">
+	update item_repository 
+	<set>
+		SOURCE=#{source},
+		SOURCE_TIME=#{source_Time},
+		SERIAL_NUM=#{serial_Num},
+		FILE_TYPE=#{file_Type},
+		DRAFTER=#{drafter},
+		DRAFTER_TEL=#{drafter_Tel},
+		ITEM_NAME=#{item_Name},
+		ITEM_CODE=#{item_Code},
+		USERNAME=#{userName},
+		ADVERSE_COMP=#{adverse_Comp},
+		SECRITY=#{secrity},
+		ITEM_CONTENT=#{item_Content},
+		REMARK=#{remark}
+	</set>
+	where ITEM_CODE=#{item_Code}
+	</update>
+	<!--批量删除改变所有的状态  -->
+	<update id="deleteAll" parameterType="java.util.List">
+		UPDATE item_repository SET DEL_STATUS ='1' WHERE ID IN <foreach collection="list" index="index" item="item" open="(" separator="," close=")">#{item}</foreach>
+	</update>
+</mapper>
