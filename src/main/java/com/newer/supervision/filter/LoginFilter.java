@@ -61,7 +61,6 @@ public class LoginFilter implements Filter {
 //		System.out.println("name "+u.getRealname());
 		// 获取请求地址
 		String uri = req.getRequestURI();
-//		System.out.println("uri"+uri);
 		if (uri.endsWith("login.html") || uri.endsWith("/login")||uri.endsWith("/imagecode")) {
 			chain.doFilter(request, response);
 		} else if (u != null) {
